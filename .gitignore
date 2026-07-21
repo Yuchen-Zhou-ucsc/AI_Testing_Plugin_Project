@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+
+# Python virtual environment
+backend/.venv/
+__pycache__/
+*.pyc
+
+# SQLite database
+backend/users.db
+backend/*.db
+
+# Flask
+instance/
+
+# React / Node.js
+frontend/node_modules/
+frontend/dist/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*
