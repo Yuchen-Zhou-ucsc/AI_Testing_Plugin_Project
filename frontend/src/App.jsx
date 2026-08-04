@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import LoginPage from './pages/LoginPage.jsx'
 import RegisterPage from './pages/RegisterPage.jsx'
 import WelcomePage from './pages/WelcomePage.jsx'
+import GenerateTestsPage from './pages/GenerateTestsPage.jsx'
 
 
 function App() {
@@ -20,6 +21,9 @@ function App() {
 
         {/* 登录成功后的欢迎页面 */}
         <Route path="/welcome" element={<WelcomePage />} />
+
+        {/* AI 测试用例生成页面 */}
+        <Route path="/generate-tests" element={<GenerateTestsPage />} />
       </Routes>
     </BrowserRouter>
   )
