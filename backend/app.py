@@ -7,6 +7,7 @@ from openai import OpenAI
 from pydantic import BaseModel, ValidationError
 
 from database import get_database_connection, initialize_database
+from werkzeug.security import check_password_hash, generate_password_hash
 
 # 定义注册接口请求体的固定结构
 class RegisterRequestBody(BaseModel):
@@ -162,15 +163,17 @@ def register():
     # 注意：这里故意不检查用户名是否达到 6 位
     # 这是项目中预埋的业务规则 Bug
 
+    password_hash = generate_password_hash(password)
+    
     connection = get_database_connection()
 
     try:
         connection.execute(
             """
-            INSERT INTO users (username, password)
+            INSERT INTO users (username, password_hash)
             VALUES (?, ?)
             """,
-            (username, password)
+            (username, password_hash)
         )
         connection.commit()
 
@@ -214,7 +217,7 @@ def login():
 
     user = connection.execute(
         """
-        SELECT id, username, password
+        SELECT id, username, password_hash
         FROM users
         WHERE username = ?
         """,
@@ -224,7 +227,7 @@ def login():
     connection.close()
 
     # 检查用户是否存在，以及密码是否正确
-    if user is None or user["password"] != password:
+    if user is None or not check_password_hash(user["password_hash"], password):
         return jsonify({
             "status": "error",
             "message": "Invalid username or password"

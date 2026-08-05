@@ -1,43 +1,87 @@
 import sqlite3
 from pathlib import Path
 
+from werkzeug.security import generate_password_hash
 
-# 获取 backend 文件夹的绝对路径
+
 BASE_DIR = Path(__file__).resolve().parent
-
-# 数据库文件将保存在 backend 文件夹中
 DATABASE_PATH = BASE_DIR / "users.db"
 
 
 def get_database_connection():
-    """
-    创建并返回 SQLite 数据库连接。
-    row_factory 让查询结果可以通过字段名读取。
-    """
     connection = sqlite3.connect(DATABASE_PATH)
     connection.row_factory = sqlite3.Row
     return connection
 
 
 def initialize_database():
-    """
-    如果 users 表不存在，则创建 users 表。
-    """
     connection = get_database_connection()
 
-    connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        """
-    )
+    try:
+        table_exists = connection.execute(
+            """
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'users'
+            """
+        ).fetchone()
 
-    connection.commit()
-    connection.close()
+        # 第一次运行：创建使用 password_hash 的新表
+        if table_exists is None:
+            connection.execute(
+                """
+                CREATE TABLE users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+
+        else:
+            columns = {
+                row["name"]
+                for row in connection.execute(
+                    "PRAGMA table_info(users)"
+                ).fetchall()
+            }
+
+            # 升级旧数据库：把 password 字段改名为 password_hash
+            if "password" in columns and "password_hash" not in columns:
+                connection.execute(
+                    """
+                    ALTER TABLE users
+                    RENAME COLUMN password TO password_hash
+                    """
+                )
+
+                # 把已有账号的明文密码转换成不可逆哈希
+                existing_users = connection.execute(
+                    """
+                    SELECT id, password_hash
+                    FROM users
+                    """
+                ).fetchall()
+
+                for user in existing_users:
+                    hashed_password = generate_password_hash(
+                        user["password_hash"]
+                    )
+
+                    connection.execute(
+                        """
+                        UPDATE users
+                        SET password_hash = ?
+                        WHERE id = ?
+                        """,
+                        (hashed_password, user["id"])
+                    )
+
+        connection.commit()
+
+    finally:
+        connection.close()
 
     print(f"Database initialized: {DATABASE_PATH}")
 
