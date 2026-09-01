@@ -33,6 +33,8 @@ The prototype currently supports:
 - Automatic prerequisite setup for duplicate-username tests
 - Automatic cleanup of newly created test accounts
 - Detection of the intentionally planted username-length bug
+- Initial Playwright UI automation test for the registration page
+- In-app Playwright execution with UI Pass/Fail results
 - Manual and automated execution records
 - Final test report, bug report, and plugin architecture documentation
 
@@ -67,6 +69,7 @@ The failed manual test reproduced the same username-length validation bug found 
 - Axios
 - React Router
 - Ant Design
+- Playwright
 
 ### Backend and AI
 
@@ -88,6 +91,7 @@ The failed manual test reproduced the same username-length validation bug found 
 | `POST` | `/api/login` | Log in an existing user |
 | `POST` | `/api/ai/generate-tests` | Generate structured test cases from a requirement |
 | `POST` | `/api/tests/execute` | Execute generated test cases and return results |
+| `POST` | `/api/ui-tests/execute` | Run the registered Playwright UI test and return results |
 
 For safety, the current automated executor only accepts test cases targeting:
 
@@ -205,6 +209,30 @@ http://localhost:5173
 6. Review the expected status code, actual status code, and Pass/Fail result.
 
 Generating test cases calls the OpenAI API. Executing the generated cases runs locally against Flask and does not make another OpenAI request.
+
+### 4. Run the First UI Automation Test
+
+Start the Flask backend first:
+
+```bash
+cd backend
+python app.py
+```
+
+You can run the Playwright UI test from another terminal:
+
+```bash
+cd frontend
+npm run test:ui
+```
+
+The first UI test opens the registration page, enters a five-character username, submits the form, and expects the backend to reject it with HTTP `400`.
+
+Because the username-length bug is intentionally still present, this test currently fails with actual HTTP `201`. This is expected and demonstrates that UI automation can detect the same product bug through real browser interaction.
+
+The same test can also be started from the **UI 自动化测试** section on
+`http://localhost:5173/generate-tests`. The page displays the browser, expected
+and actual status codes, duration, and Pass/Fail result returned by Flask.
 
 ## Intentional Functional Bug
 

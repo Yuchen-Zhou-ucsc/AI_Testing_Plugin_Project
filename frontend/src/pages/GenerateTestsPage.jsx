@@ -3,8 +3,11 @@ import axios from "axios";
 import {
   Button,
   Card,
+  Col,
   Input,
   message,
+  Row,
+  Statistic,
   Table,
   Tag,
   Typography,
@@ -63,30 +66,83 @@ const columns = [
     key: "expected_status_code",
     width: 130,
   },
-{
-  title: "实际状态码",
-  dataIndex: "actual_status_code",
-  key: "actual_status_code",
-  width: 130,
-  render: (value) => value ?? "尚未执行",
-},
-{
-  title: "测试状态",
-  dataIndex: "test_status",
-  key: "test_status",
-  width: 120,
-  render: (status) => {
-    if (!status) {
-      return <Tag>尚未执行</Tag>;
-    }
+  {
+    title: "实际状态码",
+    dataIndex: "actual_status_code",
+    key: "actual_status_code",
+    width: 130,
+    render: (value) => value ?? "尚未执行",
+  },
+  {
+    title: "测试状态",
+    dataIndex: "test_status",
+    key: "test_status",
+    width: 120,
+    render: (status) => {
+      if (!status) {
+        return <Tag>尚未执行</Tag>;
+      }
 
-    return (
-      <Tag color={status === "Pass" ? "green" : "red"}>
+      return <Tag color={status === "Pass" ? "green" : "red"}>{status}</Tag>;
+    },
+  },
+];
+
+const uiTestColumns = [
+  {
+    title: "测试编号",
+    dataIndex: "test_case_id",
+    key: "test_case_id",
+    width: 120,
+  },
+  {
+    title: "测试类型",
+    dataIndex: "test_type",
+    key: "test_type",
+    width: 150,
+  },
+  {
+    title: "测试场景",
+    dataIndex: "test_scenario",
+    key: "test_scenario",
+  },
+  {
+    title: "浏览器",
+    dataIndex: "browser",
+    key: "browser",
+    width: 120,
+  },
+  {
+    title: "预期状态码",
+    dataIndex: "expected_status_code",
+    key: "expected_status_code",
+    width: 130,
+  },
+  {
+    title: "实际状态码",
+    dataIndex: "actual_status_code",
+    key: "actual_status_code",
+    width: 130,
+    render: (value) => value ?? "未获取",
+  },
+  {
+    title: "耗时",
+    dataIndex: "duration_ms",
+    key: "duration_ms",
+    width: 100,
+    render: (value) => `${value} ms`,
+  },
+  {
+    title: "测试状态",
+    dataIndex: "test_status",
+    key: "test_status",
+    width: 110,
+    render: (status) => (
+      <Tag color={status === "Pass" ? "green" : status === "Fail" ? "red" : "orange"}>
         {status}
       </Tag>
-    );
+    ),
   },
-},
 ];
 
 function GenerateTestsPage() {
@@ -94,8 +150,10 @@ function GenerateTestsPage() {
   const [loading, setLoading] = useState(false);
   const [testCases, setTestCases] = useState([]);
   const [executing, setExecuting] = useState(false);
-const [executionResults, setExecutionResults] = useState([]);
-  
+  const [executionResults, setExecutionResults] = useState([]);
+  const [uiExecuting, setUiExecuting] = useState(false);
+  const [uiExecutionResults, setUiExecutionResults] = useState([]);
+  const [uiSummary, setUiSummary] = useState(null);
 
   const handleGenerateTests = async () => {
     setExecutionResults([]);
@@ -129,25 +187,48 @@ const [executionResults, setExecutionResults] = useState([]);
     setExecutionResults([]);
 
     try {
-        const response = await axios.post(
+      const response = await axios.post(
         "http://127.0.0.1:5000/api/tests/execute",
         {
-            test_cases: testCases,
+          test_cases: testCases,
         }
-        );
+      );
 
-        const results = response.data.execution_results;
+      const results = response.data.execution_results;
 
-        console.log("测试执行结果：", results);
-        setExecutionResults(results);
-        message.success("自动化测试执行完成");
+      console.log("测试执行结果：", results);
+      setExecutionResults(results);
+      message.success("自动化测试执行完成");
     } catch (error) {
-        console.error("执行测试失败：", error);
-        message.error("执行测试失败，请检查后端服务");
+      console.error("执行测试失败：", error);
+      message.error("执行测试失败，请检查后端服务");
     } finally {
-        setExecuting(false);
+      setExecuting(false);
     }
-    };
+  };
+
+  const handleExecuteUiTests = async () => {
+    setUiExecuting(true);
+    setUiExecutionResults([]);
+    setUiSummary(null);
+
+    try {
+      const response = await axios.post(
+        "http://127.0.0.1:5000/api/ui-tests/execute"
+      );
+
+      setUiExecutionResults(response.data.execution_results);
+      setUiSummary(response.data.summary);
+      message.success("UI 自动化测试执行完成");
+    } catch (error) {
+      console.error("执行 UI 测试失败：", error);
+      message.error(
+        error.response?.data?.message || "UI 测试执行失败，请检查后端服务"
+      );
+    } finally {
+      setUiExecuting(false);
+    }
+  };
 
   return (
     <div style={{ maxWidth: 1400, margin: "40px auto", padding: "0 20px" }}>
@@ -191,11 +272,7 @@ const [executionResults, setExecutionResults] = useState([]);
         
           <Table
             columns={columns}
-            dataSource={
-                executionResults.length > 0
-                    ? executionResults
-                    : testCases
-            }
+            dataSource={executionResults.length > 0 ? executionResults : testCases}
             rowKey="test_case_id"
             pagination={false}
             bordered
@@ -203,6 +280,62 @@ const [executionResults, setExecutionResults] = useState([]);
           />
         </Card>
       )}
+
+      <Card style={{ marginTop: 24 }}>
+        <Title level={3}>UI 自动化测试</Title>
+        <Paragraph>
+          使用 Chromium 模拟用户打开注册页、输入 5 位用户名并提交，验证系统是否正确拒绝注册。
+        </Paragraph>
+
+        <Button
+          type="primary"
+          loading={uiExecuting}
+          onClick={handleExecuteUiTests}
+        >
+          执行 UI 测试
+        </Button>
+
+        {uiSummary && (
+          <Row gutter={16} style={{ marginTop: 24, marginBottom: 20 }}>
+            <Col xs={12} sm={6}>
+              <Statistic title="总用例" value={uiSummary.total} />
+            </Col>
+            <Col xs={12} sm={6}>
+              <Statistic
+                title="通过"
+                value={uiSummary.passed}
+                valueStyle={{ color: "#389e0d" }}
+              />
+            </Col>
+            <Col xs={12} sm={6}>
+              <Statistic
+                title="失败"
+                value={uiSummary.failed}
+                valueStyle={{ color: "#cf1322" }}
+              />
+            </Col>
+            <Col xs={12} sm={6}>
+              <Statistic
+                title="执行错误"
+                value={uiSummary.errors}
+                valueStyle={{ color: "#d46b08" }}
+              />
+            </Col>
+          </Row>
+        )}
+
+        {uiExecutionResults.length > 0 && (
+          <Table
+            columns={uiTestColumns}
+            dataSource={uiExecutionResults}
+            rowKey="test_case_id"
+            pagination={false}
+            bordered
+            scroll={{ x: 1080 }}
+            style={{ marginTop: uiSummary ? 0 : 24 }}
+          />
+        )}
+      </Card>
     </div>
   );
 }

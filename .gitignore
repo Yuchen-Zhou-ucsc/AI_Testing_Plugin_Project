@@ -16,6 +16,8 @@ instance/
 # React / Node.js
 frontend/node_modules/
 frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
 
 # Environment variables
 .env

@@ -1,4 +1,7 @@
+import json
 import sqlite3
+import subprocess
+from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
@@ -8,6 +11,11 @@ from pydantic import BaseModel, ValidationError
 
 from database import get_database_connection, initialize_database
 from werkzeug.security import check_password_hash, generate_password_hash
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+FRONTEND_ROOT = PROJECT_ROOT / "frontend"
+PLAYWRIGHT_EXECUTABLE = FRONTEND_ROOT / "node_modules" / ".bin" / "playwright"
+REGISTER_UI_TEST = "tests/ui/register.spec.js"
 
 # 定义注册接口请求体的固定结构
 class RegisterRequestBody(BaseModel):
@@ -379,6 +387,148 @@ def execute_tests():
             "failed": failed_count
         },
         "execution_results": execution_results
+    }), 200
+
+
+def collect_playwright_specs(suites):
+    specs = []
+
+    for suite in suites:
+        specs.extend(suite.get("specs", []))
+        specs.extend(collect_playwright_specs(suite.get("suites", [])))
+
+    return specs
+
+
+def parse_ui_test_details(stdout_entries):
+    marker = "UI_TEST_RESULT:"
+
+    for entry in stdout_entries:
+        text = entry.get("text", "") if isinstance(entry, dict) else str(entry)
+
+        for line in text.splitlines():
+            if line.startswith(marker):
+                return json.loads(line.removeprefix(marker))
+
+    return {}
+
+
+# 运行项目内已登记的 Playwright UI 用例
+@app.post("/api/ui-tests/execute")
+def execute_ui_tests():
+    if not PLAYWRIGHT_EXECUTABLE.exists():
+        return jsonify({
+            "status": "error",
+            "message": "Playwright is not installed. Run npm install in frontend first."
+        }), 500
+
+    try:
+        completed_process = subprocess.run(
+            [
+                str(PLAYWRIGHT_EXECUTABLE),
+                "test",
+                REGISTER_UI_TEST,
+                "--reporter=json",
+            ],
+            cwd=FRONTEND_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=90,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return jsonify({
+            "status": "error",
+            "message": "UI test execution timed out"
+        }), 504
+    except OSError as error:
+        print("Playwright execution error:", error)
+        return jsonify({
+            "status": "error",
+            "message": "Failed to start UI test execution"
+        }), 500
+
+    try:
+        playwright_report = json.loads(completed_process.stdout)
+    except json.JSONDecodeError as error:
+        print("Playwright report parsing error:", error)
+        print("Playwright stderr:", completed_process.stderr[-2000:])
+        return jsonify({
+            "status": "error",
+            "message": "Failed to parse UI test results"
+        }), 500
+
+    execution_results = []
+
+    for spec in collect_playwright_specs(playwright_report.get("suites", [])):
+        for playwright_test in spec.get("tests", []):
+            attempts = playwright_test.get("results", [])
+            final_attempt = attempts[-1] if attempts else {}
+            raw_status = final_attempt.get("status", "interrupted")
+            details = parse_ui_test_details(final_attempt.get("stdout", []))
+
+            if raw_status == "passed":
+                test_status = "Pass"
+            elif raw_status in {"failed", "timedOut"}:
+                test_status = "Fail"
+            else:
+                test_status = "Error"
+
+            execution_results.append({
+                "test_case_id": details.get("test_case_id", "REG-002"),
+                "test_type": "UI Automation",
+                "test_scenario": details.get(
+                    "test_scenario",
+                    "Reject registration when username has fewer than 6 characters",
+                ),
+                "expected_status_code": details.get("expected_status_code", 400),
+                "actual_status_code": details.get("actual_status_code"),
+                "test_status": test_status,
+                "duration_ms": final_attempt.get("duration", 0),
+                "browser": playwright_test.get("projectName", "chromium"),
+                "error_message": (
+                    final_attempt.get("error", {}).get("message")
+                    if test_status != "Pass"
+                    else None
+                ),
+            })
+
+    if not execution_results:
+        report_errors = playwright_report.get("errors", [])
+        error_message = (
+            report_errors[0].get("message")
+            if report_errors
+            else "Playwright returned no UI test results"
+        )
+        print("Playwright execution error:", error_message)
+        return jsonify({
+            "status": "error",
+            "message": "UI test execution produced no results"
+        }), 500
+
+    passed_count = sum(
+        result["test_status"] == "Pass"
+        for result in execution_results
+    )
+    failed_count = sum(
+        result["test_status"] == "Fail"
+        for result in execution_results
+    )
+    error_count = sum(
+        result["test_status"] == "Error"
+        for result in execution_results
+    )
+
+    return jsonify({
+        "status": "success",
+        "message": "UI test execution completed",
+        "summary": {
+            "total": len(execution_results),
+            "passed": passed_count,
+            "failed": failed_count,
+            "errors": error_count,
+        },
+        "execution_results": execution_results,
     }), 200
 
 # 直接运行 app.py 时启动后端服务器
