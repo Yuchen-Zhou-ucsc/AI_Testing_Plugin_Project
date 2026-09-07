@@ -3,7 +3,7 @@
 echo "Starting AI Testing Plugin Project..."
 
 cd backend
-python app.py &
+python3 app.py &
 
 cd ../frontend
 npm run dev &

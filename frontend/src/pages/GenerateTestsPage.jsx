@@ -284,7 +284,7 @@ function GenerateTestsPage() {
       <Card style={{ marginTop: 24 }}>
         <Title level={3}>UI 自动化测试</Title>
         <Paragraph>
-          使用 Chromium 模拟用户打开注册页、输入 5 位用户名并提交，验证系统是否正确拒绝注册。
+          使用 Chromium 模拟用户完成合法注册、短用户名注册、空用户名、空密码和重复用户名五个场景，验证注册页关键规则。
         </Paragraph>
 
         <Button

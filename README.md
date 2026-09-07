@@ -33,7 +33,7 @@ The prototype currently supports:
 - Automatic prerequisite setup for duplicate-username tests
 - Automatic cleanup of newly created test accounts
 - Detection of the intentionally planted username-length bug
-- Initial Playwright UI automation test for the registration page
+- Five Playwright UI automation tests for the registration page
 - In-app Playwright execution with UI Pass/Fail results
 - Manual and automated execution records
 - Final test report, bug report, and plugin architecture documentation
@@ -59,6 +59,22 @@ Three core manual tests were executed:
 | Registration with a five-character username | Fail |
 
 The failed manual test reproduced the same username-length validation bug found by the automated test.
+
+### UI Automation Testing
+
+The UI automation tests were executed through Flask on September 7, 2026.
+
+| Total | Passed | Failed | Errors | Result |
+| ---: | ---: | ---: | ---: | --- |
+| 5 | 4 | 1 | 0 | The intentional username-length bug was detected through real browser interaction |
+
+| Test | Scenario | Result |
+| --- | --- | --- |
+| REG-001 | Valid username and password can register successfully | Pass |
+| REG-002 | Username shorter than 6 characters should be rejected | Fail |
+| REG-003 | Empty username is blocked by frontend validation | Pass |
+| REG-004 | Empty password is blocked by frontend validation | Pass |
+| REG-005 | Duplicate username is rejected | Pass |
 
 ## Technology Stack
 
@@ -210,13 +226,13 @@ http://localhost:5173
 
 Generating test cases calls the OpenAI API. Executing the generated cases runs locally against Flask and does not make another OpenAI request.
 
-### 4. Run the First UI Automation Test
+### 4. Run the UI Automation Tests
 
 Start the Flask backend first:
 
 ```bash
 cd backend
-python app.py
+python3 app.py
 ```
 
 You can run the Playwright UI test from another terminal:
@@ -226,11 +242,19 @@ cd frontend
 npm run test:ui
 ```
 
-The first UI test opens the registration page, enters a five-character username, submits the form, and expects the backend to reject it with HTTP `400`.
+The UI test suite opens the registration page in Chromium and currently covers five registration scenarios:
 
-Because the username-length bug is intentionally still present, this test currently fails with actual HTTP `201`. This is expected and demonstrates that UI automation can detect the same product bug through real browser interaction.
+| Test | Expected result |
+| --- | --- |
+| REG-001 | Valid username and password return HTTP `201` and redirect to `/login` |
+| REG-002 | Five-character username should return HTTP `400` |
+| REG-003 | Empty username shows frontend validation and sends no register request |
+| REG-004 | Empty password shows frontend validation and sends no register request |
+| REG-005 | Duplicate username returns HTTP `409` |
 
-The same test can also be started from the **UI 自动化测试** section on
+Because the username-length bug is intentionally still present, `REG-002` currently fails with actual HTTP `201`. This is expected and demonstrates that UI automation can detect the same product bug through real browser interaction.
+
+The same UI suite can also be started from the **UI 自动化测试** section on
 `http://localhost:5173/generate-tests`. The page displays the browser, expected
 and actual status codes, duration, and Pass/Fail result returned by Flask.
 
