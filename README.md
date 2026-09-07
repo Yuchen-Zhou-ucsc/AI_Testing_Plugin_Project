@@ -258,6 +258,37 @@ The same UI suite can also be started from the **UI 自动化测试** section on
 `http://localhost:5173/generate-tests`. The page displays the browser, expected
 and actual status codes, duration, and Pass/Fail result returned by Flask.
 
+### 5. View the Browser-Based UI Test Process
+
+If you want to watch the browser automation process, keep the Flask backend
+running and start the headed Playwright test from another terminal:
+
+```bash
+cd frontend
+npm run test:ui:headed
+```
+
+This opens a visible Chromium window and runs the same five registration UI
+tests. The expected result is four passing tests and one failing test:
+
+```text
+REG-001: Pass
+REG-002: Fail
+REG-003: Pass
+REG-004: Pass
+REG-005: Pass
+```
+
+`REG-002` is expected to fail because the username-length validation bug is
+intentionally preserved for the MVP demo.
+
+For a slower demo that is easier to observe, run:
+
+```bash
+cd frontend
+npx playwright test tests/ui/register.spec.js --headed --slow-mo=800
+```
+
 ## Intentional Functional Bug
 
 Requirement `REG-002` states that a username must contain at least six characters.
