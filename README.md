@@ -125,9 +125,13 @@ AI_Testing_Plugin_Project/
 ├── backend/
 │   ├── app.py
 │   ├── database.py
+│   ├── .env.example
 │   └── requirements.txt
 │
 ├── frontend/
+│   ├── tests/
+│   │   └── ui/
+│   │       └── register.spec.js
 │   ├── src/
 │   │   ├── App.jsx
 │   │   └── pages/
@@ -151,7 +155,8 @@ AI_Testing_Plugin_Project/
 │   ├── MT-002_login_success.png
 │   └── MT-003_short_username_bug.png
 │
-├── tests/
+├── start.sh
+├── stop.sh
 ├── .gitignore
 └── README.md
 ```
@@ -210,6 +215,14 @@ Inside the `backend` folder, create a `.env` file and add your OpenAI API key:
 OPENAI_API_KEY=your_api_key_here
 ```
 
+You can also copy the provided example:
+
+```bash
+cp .env.example .env
+```
+
+Then replace `your_api_key_here` with your real key.
+
 Never commit `.env` or a real API key to GitHub. If you only want to test
 manual registration, login, or the Playwright UI suite, the app can still start
 without generating new AI test cases.
@@ -267,6 +280,24 @@ Open:
 
 ```text
 http://localhost:5173/generate-tests
+```
+
+### Optional: Start Both Services with One Script
+
+After finishing the backend and frontend setup steps, you can start both local
+services from the project root:
+
+```bash
+bash start.sh
+```
+
+This script initializes the SQLite database, starts Flask, starts Vite, and
+opens the AI testing page.
+
+To stop services started by this script:
+
+```bash
+bash stop.sh
 ```
 
 ### 7. Run the AI Testing Prototype

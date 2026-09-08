@@ -45,10 +45,6 @@ class GeneratedTestCases(BaseModel):
 # 读取 backend/.env 中的环境变量
 load_dotenv()
 
-# 创建 OpenAI API 客户端
-openai_client = OpenAI()
-
-
 # 创建 Flask 后端应用
 app = Flask(__name__)
 CORS(app)
@@ -96,6 +92,7 @@ def generate_tests():
 
     # 调用 OpenAI API，根据需求生成测试用例
     try:
+        openai_client = OpenAI()
         response = openai_client.responses.parse(
             model="gpt-5.6-luna",
             instructions=(
