@@ -62,7 +62,8 @@ The failed manual test reproduced the same username-length validation bug found 
 
 ### UI Automation Testing
 
-The UI automation tests were executed through Flask on September 7, 2026.
+The UI automation tests were executed through Flask on September 7, 2026, and
+were re-run locally with Playwright on September 8, 2026.
 
 | Total | Passed | Failed | Errors | Result |
 | ---: | ---: | ---: | ---: | --- |
@@ -166,56 +167,109 @@ The `Test_Cases.xlsx` workbook contains the test summary, AI-generated test case
 - [Bug Report](docs/Bug_Report.md)
 - [AI Plugin Architecture](docs/AI_Plugin_Architecture.md)
 
-## Setup and Run
+## Local Setup Guide
 
-### 1. Start the Backend
+Follow this section if you are cloning or downloading the project for the first
+time and want to run it locally.
+
+### 1. Prerequisites
+
+Make sure your computer has:
+
+- Python 3.10 or later
+- Node.js 18 or later
+- npm
+- Git, if you are cloning from GitHub
+- An OpenAI API key, required only when generating AI test cases
+
+Playwright is installed through the frontend npm dependencies, but its browser
+runtime must be installed once after `npm install`.
+
+### 2. Download the Project
+
+```bash
+git clone https://github.com/Yuchen-Zhou-ucsc/AI_Testing_Plugin_Project.git
+cd AI_Testing_Plugin_Project
+```
+
+If you downloaded a ZIP file instead, unzip it and open a terminal in the
+`AI_Testing_Plugin_Project` folder.
+
+### 3. Install Backend Dependencies
 
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-pip install openai python-dotenv flask-cors pydantic
 ```
 
-Create `backend/.env` and add an OpenAI API key:
+Inside the `backend` folder, create a `.env` file and add your OpenAI API key:
 
 ```env
 OPENAI_API_KEY=your_api_key_here
 ```
 
-Never commit `.env` or a real API key to GitHub.
+Never commit `.env` or a real API key to GitHub. If you only want to test
+manual registration, login, or the Playwright UI suite, the app can still start
+without generating new AI test cases.
 
-Initialize the database and start Flask:
+Initialize the database:
 
 ```bash
 python database.py
+```
+
+### 4. Install Frontend Dependencies and Playwright Browser
+
+Open a second terminal from the project root:
+
+```bash
+cd frontend
+npm install
+npx playwright install chromium
+```
+
+The `npm install` command installs React, Vite, Ant Design, and Playwright's
+test runner. The `npx playwright install chromium` command downloads the
+Chromium browser that the UI automation tests use.
+
+### 5. Start the Backend
+
+In the backend terminal, keep the terminal inside the `backend` folder and run:
+
+```bash
+source .venv/bin/activate
 python app.py
 ```
 
-The backend runs at:
+The backend should run at:
 
 ```text
 http://127.0.0.1:5000
 ```
 
-### 2. Start the Frontend
+### 6. Start the Frontend
 
-Open a second terminal:
+In the frontend terminal, keep the terminal inside the `frontend` folder and run:
 
 ```bash
-cd frontend
-npm install
 npm run dev
 ```
 
-The frontend runs at:
+The frontend should run at:
 
 ```text
 http://localhost:5173
 ```
 
-### 3. Run the AI Testing Prototype
+Open:
+
+```text
+http://localhost:5173/generate-tests
+```
+
+### 7. Run the AI Testing Prototype
 
 1. Open `http://localhost:5173/generate-tests`.
 2. Enter a product requirement.
@@ -226,19 +280,16 @@ http://localhost:5173
 
 Generating test cases calls the OpenAI API. Executing the generated cases runs locally against Flask and does not make another OpenAI request.
 
-### 4. Run the UI Automation Tests
+### 8. Run the UI Automation Tests
 
-Start the Flask backend first:
+Before running UI automation, keep both services running:
 
-```bash
-cd backend
-python3 app.py
-```
+- Flask backend: `http://127.0.0.1:5000`
+- React frontend: `http://localhost:5173`
 
-You can run the Playwright UI test from another terminal:
+Then run the Playwright UI tests from the frontend terminal:
 
 ```bash
-cd frontend
 npm run test:ui
 ```
 
@@ -258,13 +309,12 @@ The same UI suite can also be started from the **UI 自动化测试** section on
 `http://localhost:5173/generate-tests`. The page displays the browser, expected
 and actual status codes, duration, and Pass/Fail result returned by Flask.
 
-### 5. View the Browser-Based UI Test Process
+### 9. View the Browser-Based UI Test Process
 
 If you want to watch the browser automation process, keep the Flask backend
 running and start the headed Playwright test from another terminal:
 
 ```bash
-cd frontend
 npm run test:ui:headed
 ```
 
@@ -285,8 +335,62 @@ intentionally preserved for the MVP demo.
 For a slower demo that is easier to observe, run:
 
 ```bash
-cd frontend
 npx playwright test tests/ui/register.spec.js --headed --slow-mo=800
+```
+
+## Quick Verification Checklist
+
+After setup, a successful local run should look like this:
+
+| Check | Expected result |
+| --- | --- |
+| Backend | `http://127.0.0.1:5000/api/health` returns a success message |
+| Frontend | `http://localhost:5173/generate-tests` opens the AI testing page |
+| API test execution | Five generated registration API tests run with Pass/Fail results |
+| UI automation | Five registration UI tests run: 4 Pass, 1 Fail, 0 Error |
+
+The one expected UI failure is `REG-002`, because the username-length bug is
+intentionally preserved for the MVP demo.
+
+## Common Setup Issues
+
+### `ModuleNotFoundError` when starting Flask
+
+Make sure the backend virtual environment is active and dependencies are
+installed:
+
+```bash
+cd backend
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### OpenAI API key error when generating test cases
+
+Check that `backend/.env` exists and contains:
+
+```env
+OPENAI_API_KEY=your_api_key_here
+```
+
+Restart the Flask backend after editing `.env`.
+
+### Playwright cannot find Chromium
+
+Install the Playwright browser runtime from the frontend folder:
+
+```bash
+cd frontend
+npx playwright install chromium
+```
+
+### UI tests cannot open the app
+
+Make sure both local services are running before starting UI tests:
+
+```text
+Backend:  http://127.0.0.1:5000
+Frontend: http://localhost:5173
 ```
 
 ## Intentional Functional Bug
@@ -346,7 +450,7 @@ Current limitations include:
 - The executor currently supports only `POST /api/register`
 - Test results are mainly evaluated through HTTP status codes
 - Complete PRD file parsing is not yet implemented
-- Browser-based UI automation is not yet implemented
+- Browser-based UI automation currently covers only the registration page
 - Test reports are not yet exported automatically by the application
 - Bug submission to GitHub Issues or Azure DevOps is not yet connected
 
