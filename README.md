@@ -1,6 +1,6 @@
 # AI Automated Testing Workflow Prototype
 
-A minimum viable prototype that demonstrates how AI can transform a product requirement into structured API test cases, execute them automatically, compare expected and actual results, and identify a functional bug.
+A minimum viable prototype that demonstrates how AI can transform a product requirement into structured API test cases, execute them automatically, run Playwright UI automation for the registration page, compare expected and actual results, and identify a functional bug.
 
 The test target is a React + Flask registration and login system backed by SQLite.
 
@@ -11,7 +11,9 @@ flowchart TD
     A[Product requirement input] --> B[AI requirement interpretation]
     B --> C[Structured test case generation]
     C --> D[Automated API execution]
+    C --> UI[Playwright UI automation]
     D --> E[Expected vs. actual comparison]
+    UI --> E
     E --> F[Pass / Fail results]
     F --> G[Test report and bug report]
 ```
@@ -34,7 +36,7 @@ The prototype currently supports:
 - Automatic cleanup of newly created test accounts
 - Detection of the intentionally planted username-length bug
 - Five Playwright UI automation tests for the registration page
-- In-app Playwright execution with UI Pass/Fail results
+- Frontend-triggered Playwright execution with UI Pass/Fail results
 - Manual and automated execution records
 - Final test report, bug report, and plugin architecture documentation
 
@@ -110,13 +112,14 @@ were re-run locally with Playwright on September 8, 2026.
 | `POST` | `/api/tests/execute` | Execute generated test cases and return results |
 | `POST` | `/api/ui-tests/execute` | Run the registered Playwright UI test and return results |
 
-For safety, the current automated executor only accepts test cases targeting:
+For safety, the current API test executor only accepts generated test cases
+targeting:
 
 ```text
 POST /api/register
 ```
 
-Unsupported methods or endpoints are returned as `Error`.
+Unsupported methods or endpoints are returned as `Error` by the API executor.
 
 ## Project Structure
 
@@ -313,10 +316,13 @@ Generating test cases calls the OpenAI API. Executing the generated cases runs l
 
 ### 8. Run the UI Automation Tests
 
-Before running UI automation, keep both services running:
+Before running UI automation from the command line, keep the Flask backend
+running:
 
 - Flask backend: `http://127.0.0.1:5000`
-- React frontend: `http://localhost:5173`
+
+Playwright can start the Vite frontend automatically at
+`http://127.0.0.1:5173`, or reuse an existing frontend server.
 
 Then run the Playwright UI tests from the frontend terminal:
 
@@ -417,12 +423,14 @@ npx playwright install chromium
 
 ### UI tests cannot open the app
 
-Make sure both local services are running before starting UI tests:
+Make sure the Flask backend is running. If Playwright cannot start or reuse the
+frontend, start Vite manually in the `frontend` folder:
 
-```text
-Backend:  http://127.0.0.1:5000
-Frontend: http://localhost:5173
+```bash
+npm run dev
 ```
+
+Then run `npm run test:ui` again.
 
 ## Intentional Functional Bug
 
@@ -477,11 +485,12 @@ This is a testing prototype rather than a production testing platform.
 
 Current limitations include:
 
-- AI generation is designed specifically for the registration API
-- The executor currently supports only `POST /api/register`
-- Test results are mainly evaluated through HTTP status codes
+- AI-generated API test cases are currently designed for the registration API
+- The API executor currently supports only `POST /api/register`
+- Playwright UI automation currently covers only the registration page
+- UI tests are a fixed Playwright suite, not yet AI-generated UI tests for arbitrary pages
+- API test results are mainly evaluated through HTTP status codes
 - Complete PRD file parsing is not yet implemented
-- Browser-based UI automation currently covers only the registration page
 - Test reports are not yet exported automatically by the application
 - Bug submission to GitHub Issues or Azure DevOps is not yet connected
 
